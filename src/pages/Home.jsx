@@ -22,7 +22,7 @@ export function Home() {
 							Hi, welcome to my website! Perhaps you know me by my online handle, <b>05st</b>.
 							</div>
 							<div>
-							I'm currently a Computer Science student at the University of Waterloo, class of 2028. You may be interested in some of my <Link to="https://github.com/05st">projects</Link>, or my <Link to="resume">résumé</Link>.
+							I'm currently a Computer Science student at the University of Waterloo, class of 2028. You may be interested in some of my <Link to="https://github.com/05st">projects</Link>, or my <Link to="https://raw.githubusercontent.com/05st/website/master/Resume.pdf">résumé</Link>.
 							</div>
 							<div>
 							In my free time, I enjoy programming and playing guitar among many other things. Very occassionally, I write <Link to="https://blog.stimsina.com">blog posts</Link> about programming, computer science, and mathematics.
@@ -38,7 +38,7 @@ export function Home() {
 							<MediaButton to="https://github.com/05st">
 								<FontAwesomeIcon icon={faGithub} />
 							</MediaButton>
-							<MediaButton to="resume">
+							<MediaButton to="https://raw.githubusercontent.com/05st/website/master/Resume.pdf">
 								<FontAwesomeIcon icon={faFile} />
 							</MediaButton>
 						</div>
