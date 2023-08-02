@@ -9,9 +9,9 @@ export function App() {
 	return (
 		<LocationProvider>
 			<Router>
-				<Route path="/" component={Home} />
+				<Route default path="/" component={Home} />
 				<Route path="/resume" component={Resume} />
-				<Route default component={NotFound} />
+				<Route component={NotFound} />
 			</Router>
 		</LocationProvider>
 	);
