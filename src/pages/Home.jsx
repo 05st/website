@@ -38,7 +38,7 @@ export function Home() {
 							<MediaButton to="https://github.com/05st">
 								<FontAwesomeIcon icon={faGithub} />
 							</MediaButton>
-							<MediaButton to="https://drive.google.com/file/d/1E9q5F-tnKTPBEnD1RIUKD_Up6zG_Wqbd/view">
+							<MediaButton to="https://drive.google.com/file/d/16ikbCC_c7I12Y8l-5MqOlXbFkui9OzY1/view">
 								<FontAwesomeIcon icon={faFile} />
 							</MediaButton>
 						</div>
