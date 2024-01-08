@@ -6,6 +6,8 @@ import { faLinkedin, faGithub } from '@fortawesome/free-brands-svg-icons';
 
 import avatarImg from '../assets/avatar.png';
 
+const resumeLink = "https://drive.google.com/file/d/1VIbJW7n0FI_gq36ny5tswCoJzQK23BEe/view";
+
 export function Home() {
 	return (
 		<>
@@ -22,7 +24,7 @@ export function Home() {
 							Hi, welcome to my website! Perhaps you know me by my online handle, <b>05st</b>.
 							</div>
 							<div>
-							I'm currently a Computer Science student at the University of Waterloo, class of 2028. You may be interested in some of my <Link to="https://github.com/05st">projects</Link>, or my <Link to="https://drive.google.com/file/d/1E9q5F-tnKTPBEnD1RIUKD_Up6zG_Wqbd/view">résumé</Link>.
+							I'm currently a Computer Science student at the University of Waterloo, class of 2028. You may be interested in some of my <Link to="https://github.com/05st">projects</Link>, or my <Link to={resumeLink}>résumé</Link>.
 							</div>
 							<div>
 							In my free time, I enjoy programming and playing guitar among many other things. Very occassionally, I write <Link to="https://blog.stimsina.com">blog posts</Link> about programming, computer science, and mathematics.
@@ -38,7 +40,7 @@ export function Home() {
 							<MediaButton to="https://github.com/05st">
 								<FontAwesomeIcon icon={faGithub} />
 							</MediaButton>
-							<MediaButton to="https://drive.google.com/file/d/1VIbJW7n0FI_gq36ny5tswCoJzQK23BEe/view">
+							<MediaButton to={resumeLink}>
 								<FontAwesomeIcon icon={faFile} />
 							</MediaButton>
 						</div>
