@@ -6,7 +6,7 @@ import { faLinkedin, faGithub } from '@fortawesome/free-brands-svg-icons';
 
 import avatarImg from '../assets/avatar.png';
 
-const resumeLink = "https://drive.google.com/file/d/1dcoMI64o6-hx0dLmz-0cp1tCL5_M3rEI/view";
+const resumeLink = "https://drive.google.com/file/d/110AwdSIa9Y8tX_995jeLwqZtSwFHlLAn/view";
 
 export function Home() {
 	return (
@@ -47,7 +47,7 @@ export function Home() {
 					</div>
 				</div>
 				<footer class="p-1">
-					<p class="text-sm text-center text-secondary text-gray-500">© 2023 Sami Timsina</p>
+					<p class="text-sm text-center text-secondary text-gray-500">© 2024 Sami Timsina</p>
 				</footer>
 			</div>
 		</>
