@@ -1,7 +1,7 @@
 import Link from '../components/Link.jsx';
 import MediaButton from '../components/MediaButton.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faEnvelope, faFile } from '@fortawesome/free-solid-svg-icons';
+import { faSquarePen, faEnvelope, faFile } from '@fortawesome/free-solid-svg-icons';
 import { faLinkedin, faGithub } from '@fortawesome/free-brands-svg-icons';
 
 import avatarImg from '../assets/avatar.png';
@@ -26,11 +26,11 @@ export function Home() {
 							<div>
 							I'm currently a Computer Science student at the University of Waterloo, class of 2028. You may be interested in some of my <Link to="https://github.com/05st">projects</Link>, or my <Link to={resumeLink}>résumé</Link>.
 							</div>
-							<div>
-							In my free time, I enjoy programming and playing guitar among many other things. Very occassionally, I write <Link to="https://blog.stimsina.com">blog posts</Link> about programming, computer science, and mathematics.
-							</div>
 						</p>
 						<div class="w-full text-5xl flex flex-row gap-4 m-2">
+							<MediaButton to="https://blog.stimsina.com">
+								<FontAwesomeIcon icon={faSquarePen} />
+							</MediaButton>
 							<MediaButton to="mailto:stimsina@protonmail.com">
 								<FontAwesomeIcon icon={faEnvelope} />
 							</MediaButton>
@@ -53,3 +53,7 @@ export function Home() {
 		</>
 	);
 }
+
+// <div>
+// In my free time, I enjoy programming and playing guitar among many other things. Very occassionally, I write <Link to="https://blog.stimsina.com">blog posts</Link> about programming, computer science, and mathematics.
+// </div>
