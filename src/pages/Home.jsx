@@ -6,7 +6,7 @@ import { faLinkedin, faGithub } from '@fortawesome/free-brands-svg-icons';
 
 import avatarImg from '../assets/avatar.png';
 
-const resumeLink = "https://drive.google.com/file/d/1a5mRKqXxPC8vHOev1xH8pJH3cImeaFPO/view";
+const resumeLink = "https://drive.google.com/file/d/1LUuQkSRWScOZUJCh4SqWunumG4VXEF1U/view";
 
 export function Home() {
 	return (
