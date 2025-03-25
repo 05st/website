@@ -5,6 +5,7 @@ import { About } from './pages/About.jsx';
 import { BlogList, BlogPost }from './pages/Blog.jsx';
 import { NotFound } from './pages/_404.jsx';
 import './index.css';
+import 'katex/dist/katex.min.css';
 
 export function App() {
 	return (

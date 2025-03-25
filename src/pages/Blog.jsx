@@ -11,12 +11,6 @@ const blogs = Object.entries(files).map(([path, mod]) => ({
     component: mod.default
 })).sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
 
-const components= {
-    em(properties) {
-        return <i {...properties} />;
-    }
-}
-
 export function BlogPost() {
     const { path } = useLocation();
     const slug = path.replace("/blog/", "");
@@ -33,7 +27,7 @@ export function BlogPost() {
     return (
         <article class="h-screen lg:pt-4 prose prose-sm">
             <h1 class="not-prose text-4xl font-medium mb-4">{blog.metadata.title}</h1>
-            <MDXProvider components={components}>
+            <MDXProvider>
                 <blog.component />
             </MDXProvider>
         </article>
