@@ -1,17 +1,15 @@
 import { MDXProvider } from '@mdx-js/preact';
 import { useLocation } from 'preact-iso';
-import { useEffect, useState } from 'preact/hooks';
 import { NotFound } from './_404';
 
-const blogs = [];
-
-const modules = import.meta.glob('../blogs/*.mdx');
-for (const path in modules) {
-    blogs.push({
-        slug: path.replace('../blogs/', '').replace('.mdx', ''),
-        component: modules[path]
-    });
-}
+const files = import.meta.glob("../blogs/*.mdx", { eager: true });
+const blogs = Object.entries(files).map(([path, mod]) => ({
+    slug: path.replace("../blogs/", "").replace(".mdx", ""),
+    // @ts-ignore
+    metadata: mod.metadata,
+    // @ts-ignore
+    component: mod.default
+})).sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
 
 const components= {
     em(properties) {
@@ -21,24 +19,22 @@ const components= {
 
 export function BlogPost() {
     const { path } = useLocation();
-    const slug = path.replace('/blog/', '');
+    const slug = path.replace("/blog/", "");
     const blog = blogs.find((b) => b.slug == slug);
 
     if (!blog) {
         return <NotFound />;
     }
 
-    const [Content, setContent] = useState(null);
-    useEffect(() => blog.component().then((mod) => setContent(() => mod.default)), [slug]);
-
-    if (!Content) {
+    if (!blog.component) {
         return <p>loading...</p>;
     }
 
     return (
-        <article>
+        <article class="h-screen md:pt-8 prose prose-sm">
+            <h1 class="not-prose text-4xl font-medium mb-4">{blog.metadata.title}</h1>
             <MDXProvider components={components}>
-                <Content />
+                <blog.component />
             </MDXProvider>
         </article>
     );
@@ -47,11 +43,13 @@ export function BlogPost() {
 export function BlogList() {
     return (
         <div class="w-full place-items-left">
-            <ul>
+            <ul class="md:translate-y-1/2">
                 {blogs.map((blog) => (
                     <li key={blog.slug}>
-                        <a href={`/blog/${blog.slug}`}>
-                            {blog.slug}
+                        <a class="group flex gap-1 justify-between items-center" href={`/blog/${blog.slug}`}>
+                            <span class="block">{blog.metadata.title}</span>
+                            <span class="flex-grow border-b-2 border-dotted"></span>
+                            <time class="block text-neutral-500 group-hover:text-neutral-700">{blog.metadata.date}</time>
                         </a>
                     </li>
                 ))}

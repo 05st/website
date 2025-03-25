@@ -13,12 +13,14 @@ export function App() {
 				<div class="justify-self-end mr-4">
 					<Navbar />
 				</div>
-				<Router>
-					<Route path="/" component={About} />
-					<Route path="/blog" component={BlogList} />
-					<Route path="/blog/:slug" component={BlogPost} />
-					<Route default component={NotFound} />
-				</Router>
+				<div class="w-full p-4 md:p-0">
+					<Router>
+						<Route path="/" component={About} />
+						<Route path="/blog" component={BlogList} />
+						<Route path="/blog/:slug" component={BlogPost} />
+						<Route default component={NotFound} />
+					</Router>
+				</div>
 			</LocationProvider>
 		</div>
 	);

@@ -15,6 +15,7 @@
 		"@fortawesome/react-fontawesome": "^0.2.0",
 		"@mdx-js/preact": "^3.1.0",
 		"@mdx-js/rollup": "^3.1.0",
+		"@tailwindcss/typography": "^0.5.16",
 		"preact": "^10.13.1",
 		"preact-iso": "^2.3.1",
 		"preact-render-to-string": "^6.2.0"
