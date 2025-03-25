@@ -31,7 +31,7 @@ export function BlogPost() {
     }
 
     return (
-        <article class="h-screen md:pt-8 prose prose-sm">
+        <article class="h-screen lg:pt-4 prose prose-sm">
             <h1 class="not-prose text-4xl font-medium mb-4">{blog.metadata.title}</h1>
             <MDXProvider components={components}>
                 <blog.component />
@@ -43,7 +43,7 @@ export function BlogPost() {
 export function BlogList() {
     return (
         <div class="w-full place-items-left">
-            <ul class="md:translate-y-1/2">
+            <ul class="lg:translate-y-1/2">
                 {blogs.map((blog) => (
                     <li key={blog.slug}>
                         <a class="group flex gap-1 justify-between items-center" href={`/blog/${blog.slug}`}>

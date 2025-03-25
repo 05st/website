@@ -8,12 +8,12 @@ import './index.css';
 
 export function App() {
 	return (
-		<div class="h-screen md:grid md:grid-cols-3 md:place-items-center">
-			<LocationProvider>
-				<div class="justify-self-end mr-4">
+		<LocationProvider>
+			<div class="h-screen lg:grid lg:grid-cols-3 lg:place-items-center">
+				<div class="lg:justify-self-end lg:mr-4">
 					<Navbar />
 				</div>
-				<div class="w-full p-4 md:p-0">
+				<div class="w-full p-4 place-items-center lg:place-items-start lg:p-0">
 					<Router>
 						<Route path="/" component={About} />
 						<Route path="/blog" component={BlogList} />
@@ -21,8 +21,8 @@ export function App() {
 						<Route default component={NotFound} />
 					</Router>
 				</div>
-			</LocationProvider>
-		</div>
+			</div>
+		</LocationProvider>
 	);
 }
 

@@ -13,7 +13,7 @@ function Item(props) {
 
 export function Navbar() {
     return (
-        <nav class="p-4 flex flex-row gap-2 md:p-0 md:flex-col md:gap-0 md:text-right">
+        <nav class="p-4 flex flex-row gap-2 lg:p-0 lg:flex-col lg:gap-0 lg:text-right">
             <Item href="/">about</Item>
             <Item href="/blog">blog</Item>
         </nav>
