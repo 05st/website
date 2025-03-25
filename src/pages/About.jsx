@@ -4,7 +4,7 @@ const resumeLink = "https://drive.google.com/file/d/1beDuYbCS_u3OVsZrD9Hcbe09Rz6
 
 export function About() {
 	return (
-		<article class="p-4 md:p-0">
+		<article class="w-full">
 			<h1 class="text-base text-left font-medium">sami timsina</h1>
 			<p class="text-base text-left font-normal flex flex-col">
 				<span>hey! welcome to my website.</span>

@@ -46,7 +46,7 @@ export function BlogPost() {
 
 export function BlogList() {
     return (
-        <div class="w-full place-items-left p-5">
+        <div class="w-full place-items-left">
             <ul>
                 {blogs.map((blog) => (
                     <li key={blog.slug}>

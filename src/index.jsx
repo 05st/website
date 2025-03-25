@@ -10,7 +10,7 @@ export function App() {
 	return (
 		<div class="h-screen md:grid md:grid-cols-3 md:place-items-center">
 			<LocationProvider>
-				<div class="justify-self-end">
+				<div class="justify-self-end mr-4">
 					<Navbar />
 				</div>
 				<Router>
