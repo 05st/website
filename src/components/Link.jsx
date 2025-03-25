@@ -1,7 +1,3 @@
 export default function Link(props) {
-    return (
-        <a class="text-blue-600 hover:font-semibold" href={props.to} target="_blank">
-            {props.children}
-        </a>
-    );
+    return <a class="underline decoration-neutral-400 hover:decoration-neutral-600" {...props} />;
 }
