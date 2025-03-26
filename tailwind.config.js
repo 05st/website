@@ -5,10 +5,19 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      typography: {
+        DEFAULT: {
+          css: {
+            blockquote: {
+              quotes: "none",
+            },
+          },
+        },
+      },
+    },
   },
   plugins: [
-    require("@tailwindcss/typography")
+    require("@tailwindcss/typography"),
   ],
 }
-
