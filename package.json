@@ -15,6 +15,7 @@
 		"@fortawesome/react-fontawesome": "^0.2.0",
 		"@mdx-js/preact": "^3.1.0",
 		"@mdx-js/rollup": "^3.1.0",
+		"@supabase/supabase-js": "^2.91.1",
 		"@tailwindcss/typography": "^0.5.16",
 		"katex": "^0.16.21",
 		"preact": "^10.13.1",
