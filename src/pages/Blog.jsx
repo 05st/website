@@ -208,12 +208,31 @@ function Comments({ slug }) {
 
 export function BlogList() {
     const [query, setQuery] = useState("");
+    const [selectedTags, setSelectedTags] = useState([]);
     const normalizedQuery = query.trim().toLowerCase();
+    const allTags = useMemo(() => {
+        const tags = new Set();
+        blogs.forEach((blog) => {
+            (blog.metadata?.tags || []).forEach((tag) => tags.add(tag));
+        });
+        return Array.from(tags).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    }, []);
+    const normalizedSelectedTags = useMemo(
+        () => selectedTags.map((tag) => tag.toLowerCase()),
+        [selectedTags]
+    );
     const filteredBlogs = useMemo(() => {
-        if (!normalizedQuery) {
-            return blogs;
-        }
         return blogs.filter((blog) => {
+            if (normalizedSelectedTags.length) {
+                const blogTags = (blog.metadata?.tags || []).map((tag) => tag.toLowerCase());
+                const matchesTags = normalizedSelectedTags.some((tag) => blogTags.includes(tag));
+                if (!matchesTags) {
+                    return false;
+                }
+            }
+            if (!normalizedQuery) {
+                return true;
+            }
             const title = blog.metadata?.title?.toLowerCase() || "";
             const slug = blog.slug.toLowerCase();
             const date = blog.metadata?.date?.toLowerCase?.() || "";
@@ -221,36 +240,81 @@ export function BlogList() {
                 || slug.includes(normalizedQuery)
                 || date.includes(normalizedQuery);
         });
-    }, [normalizedQuery]);
+    }, [normalizedQuery, normalizedSelectedTags]);
 
     return (
         <div class="w-full lg:h-screen lg:grid lg:grid-rows-2">
             <div class="lg:flex lg:items-end pb-1">
-                <label class="block w-full">
-                    <span class="sr-only">search</span>
-                    <input
-                        class="box-border h-8 w-full border-0 border-b border-neutral-300 bg-transparent px-0 text-sm leading-10 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
-                        type="search"
-                        placeholder="search"
-                        value={query}
-                        onInput={(event) => setQuery(event.currentTarget.value)}
-                    />
-                </label>
+                <div class="w-full grid gap-2">
+                    <label class="block w-full">
+                        <span class="sr-only">search</span>
+                        <input
+                            class="box-border h-8 w-full border-0 border-b border-neutral-300 bg-transparent px-0 text-sm leading-10 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+                            type="search"
+                            placeholder="search"
+                            value={query}
+                            onInput={(event) => setQuery(event.currentTarget.value)}
+                        />
+                    </label>
+                    {!!allTags.length && (
+                        <div class="flex flex-wrap gap-2 text-xs text-neutral-600">
+                            {allTags.map((tag) => {
+                                const isSelected = selectedTags.includes(tag);
+                                return (
+                                    <button
+                                        key={tag}
+                                        type="button"
+                                        class={`touch-manipulation rounded-full border px-2 py-0.5 transition-colors duration-75 ${isSelected ? "border-neutral-900 text-neutral-900" : "border-neutral-300 hover:border-neutral-500"}`}
+                                        aria-pressed={isSelected}
+                                        onClick={() => {
+                                            setSelectedTags((current) => (
+                                                current.includes(tag)
+                                                    ? current.filter((value) => value !== tag)
+                                                    : [...current, tag]
+                                            ));
+                                        }}
+                                    >
+                                        {tag}
+                                    </button>
+                                );
+                            })}
+                            {!!selectedTags.length && (
+                                <button
+                                    type="button"
+                                    class="text-neutral-400 hover:text-neutral-600"
+                                    onClick={() => setSelectedTags([])}
+                                >
+                                    clear
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
             <div class="lg:flex lg:items-start">
-                <div class="w-full grid gap-4">
-                    <ul>
-                        {filteredBlogs.map((blog) => (
-                            <li key={blog.slug}>
-                                <a class="group flex gap-1 justify-between items-center" href={`/blog/${blog.slug}`}>
-                                    <span class="block">{blog.metadata.title}</span>
-                                    <span class="flex-grow border-b-2 border-dotted"></span>
+                <ul class="w-full">
+                    {filteredBlogs.map((blog) => (
+                        <li key={blog.slug}>
+                            <a
+                                class="group -mx-2 block rounded-md px-2 py-1 transition-colors hover:bg-neutral-100"
+                                href={`/blog/${blog.slug}`}
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <span class="block">{blog.metadata.title}</span>
+                                        <span class="text-xs text-neutral-500">
+                                            {(blog.metadata?.tags || [])
+                                                .slice()
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+                                                .join(", ")}
+                                        </span>
+                                    </div>
                                     <time class="block text-sm text-neutral-500 group-hover:text-neutral-700">{blog.metadata.date}</time>
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                                </div>
+                            </a>
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );

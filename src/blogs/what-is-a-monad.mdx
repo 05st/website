@@ -1,0 +1,191 @@
+export const metadata = {
+    title: "what is a monad?",
+    date: "2021-07-19",
+    tags: ["haskell", "legacy", "programming"]
+};
+
+If you've spent any time with functional languages, especially
+[*purely* functional](https://en.wikipedia.org/wiki/Purely_functional_programming)
+languages (such as [Haskell](https://www.haskell.org)), you've probably heard of
+concepts such as *monoids*, *functors*, *applicatives*, and *monads*. It's also
+possible you've read a couple (thousand) explanations on these concepts, and still
+don't quite grasp them.
+
+I'm going to attempt to explain what a monad is with minimal analogies, practical
+examples, and hopefully explain them in the way I wish were explained to me. Basic
+knowledge of Haskell is assumed.
+
+### First, *functors*.
+Let's say you have a data type, one I'm sure you're familiar with is `Maybe`:
+```haskell
+data Maybe a = Just a | Nothing
+```
+The code above defines a *parameterized* data type with two value constructors,
+`Just a` and `Nothing`. This means that `Maybe` by itself is *not* a type, rather,
+it's a *type constructor*. It constructs a type when you fill in the type parameter,
+`a`. We determine what type to pass to the type parameter based on what our data type
+will contain. For example, if you pass an `Int` as the type parameter, you get a
+type of `Maybe Int`. This could be useful, for example if we were doing safe integer
+division.
+```haskell
+safeDiv :: Int -> Int -> Maybe Int
+safeDiv _ 0 = Nothing
+safeDiv x y = Just (x `div` y)
+```
+Onto the actual explanation of functors. I think the best way to start would be by introducing what defines a functor in Haskell:
+```haskell
+class Functor f where
+    fmap :: (a -> b) -> f a -> f b
+ ```
+That's it. In Haskell, **for any data type `f a`** (like `Maybe Int`, but in general) **to be called a functor, there just needs to be a suitable implementation of `fmap` present.**
+
+Let's figure out what `fmap` should do by looking at the type annotation. It takes in two inputs, the first is a function mapping `a`'s to `b`'s. The second input is any "type container" `f` that contains some `a`'s which we are trying to implement `fmap` for. Finally, the type annotation states that `fmap` should output an `f b`.
+Based on that information, we conclude that an implementation of `fmap` should apply the function on the value(s) contained in the first input, then output a wrapped value(s) of the result.
+*(Note: A data type having one type parameter doesn't necessarily mean it only contains one field or doesn't recurse, for example with lists or trees).*
+
+Now, when will this ever be needed? Refer to the safe division example from earlier. Let's say we want to call `safeDiv` on two integers, but we also want the result of the division to be doubled.
+If the function didn't return a `Maybe Int`, like with regular `div`, we could achieve this easily:
+```haskell
+(* 2) $ (div x y)
+```
+However, in our safe division example, the function returns a `Maybe Int`. We *could* do something like the following:
+```haskell
+case safeDiv x y of
+    Nothing -> Nothing
+    Just result -> Just (result * 2)
+```
+If `safeDiv` failed, then it makes sense to return `Nothing`. If it didn't fail, then we can double the result and wrap it with a `Just`. That looks unnecessarily long and ugly, but it works.
+
+*If only* there was some way to unwrap values from the `Maybe`, apply a function, and then wrap the result. That sounds a lot like what `fmap` should do! Let's implement `fmap` for `Maybe`, thus making it a functor.
+```haskell
+instance Functor Maybe where
+    -- fmap :: (a -> b) -> Maybe a -> Maybe b
+    fmap f Nothing = Nothing
+    fmap f (Just x) = Just (f x)
+```
+This is an implementation that makes sense, if the first `Maybe a` is a `Nothing`, then we have *nothing* to apply the function to. However, if it's a `Just x`, then we can apply the function to `x`, and wrap the output with a `Just` value constructor.
+
+We can now solve our problem from earlier in a much cleaner fashion:
+```haskell
+(* 2) `fmap` (safeDiv x y)
+-- OR --
+(* 2) <$> (safeDiv x y) -- looks similar to (* 2) $ (div x y)
+```
+*(Note: `<$>` is equivalent to `fmap`, meant to be used as an infix.)*
+
+Table of some commonly used functors:
+| Functor    | fmap                             |
+| ---------- | -------------------------------- |
+| List/Array | map each element                 |
+| Tree       | map each node value              |
+| IO         | transform result of input        |
+| Maybe      | apply function if not Nothing    |
+| Pair       | apply function to second element |
+| Function   | function composition             |
+
+While I only used the `Maybe` functor here as an example, it is important to remember that **anything** which implements `fmap` and satisfies the [functor laws](https://wiki.haskell.org/Functor#Functor_Laws) is a functor in Haskell. It is up to the programmer to make sure the laws are satisfied.
+The functor laws - and monad laws (which you will see below) - are there to ensure that instances of functors and monads behave as expected, such as preventing some arbitrary, nonsensical implementation of `fmap` to be written.
+
+### We can finally tackle *monads*.
+Monads provide us with abilities similar to functors in the sense that they allow us to operate on wrapped values, and abstract away some boilerplate code depending on what contains said values. I will be using a list data type for this section since explanations done with `Maybe` are usually too trivial to be educational.
+
+Our list data type is defined like this:
+```haskell
+data List a = None | Elem a (List a)
+```
+*(Note: the `[a]` (list) data type in Haskell is defined similarly, I chose to not use brackets so it matches with the type annotations.)*
+
+This is a *recursive* data type, which makes sense for a list implementation because we want it to contain an arbitrary number of elements. A list of four integers could look like this:
+```haskell
+Elem 1 (Elem 2 (Elem 3 (Elem 4 (None)))) :: List Int
+```
+Since my goal is to explain monads by going through the process of proving our `List` data type is a monad,  we should begin by looking at the definition of a monad in Haskell:
+```haskell
+class Monad m where
+    return :: a -> m a
+    (>>=) :: m a -> (a -> m b) -> m b
+```
+Slightly more complicated than the functor definition, but the same statement applies: **anything can be proven to be a monad as long as the programmer can provide [suitable](https://wiki.haskell.org/Monad_laws) implementations for `return` and `>>=`** (pronounced "bind").
+
+From the type annotation, we can figure out that `return` should do something along the lines of taking an arbitrary input and wrapping it with our monad. For the list example, this is simple enough - we just return a list with one element.
+```haskell
+instance Monad List where
+    -- return :: a -> List a
+    return x = Elem x (None)
+```
+Now, we must find an implementation for `>>=` which satisfies the monad laws. For our `List` data type, this is going to be a bit less trivial than implementing `>>=` on something like `Maybe`.
+
+By looking at the type annotation, we figure out that `>>=` should do something more or less like the following: input some wrapped value(s), apply the *monadic function* from the second parameter to some wrapped value(s) - I like to think of it as shoving the wrapped value(s) into the function. Finally, return the results of the function with only *one layer of wrapping*.
+*(Note: a monadic function is one that returns values wrapped inside a monad.*)
+
+That last sentence may sound silly, but consider our list data type for a second. If we were to map all elements of the list with the monadic function, we would be left with a list of lists - two layers of wrapping! So, instead of having a `List b` to return, we would be left with a `List (List b)`. A solution to this would just be to concatenate the outermost list. Let's try it.
+```haskell
+instance Monad List where
+    -- return :: a -> List a
+    return x = Elem x (None)
+    -- (>>=) :: List a -> (a -> List b) -> List b
+    l >>= f = concat $ map f l
+```
+*(Note: I will not be implementing the `concat` function for `List`, since that is unrelated to the topic. Just understand the function has a type of `List (List a) -> List a` so it will fit regardless of the implementation. Same applies to `map`, which has a type of `List a -> (a -> b) -> List b`.)*
+
+All that's left to do is verify our implementation is correct by the monad laws. The monad laws are as follows:
+```haskell
+-- Left identity
+return a >>= h = h a
+-- Right identitiy
+m >>= return = m
+-- Associativity
+(m >>= g) >>= h	= m >>= (\x -> g x >>= h)
+```
+They may seem complicated at first, but once you break them down, they aren't very hard to digest. Let's start with the *left identity* law.
+
+The left identity law states that after wrapping an arbitrary value `a` into a monad, if we shove the wrapped value into a monadic function `h`, we should be left with the same thing as applying `h` to `a`.
+Verifying this is trivial with our `>>=` implementation. If we map a function that *returns a list* (`h`) over a list with only one element (`return a`), then concatenate it (remove the outermost layer of `List`), we will be left with the same thing as applying `h` to `a`.
+
+Next up, the right identity law. If we use `>>=` (shove the values of) an arbitrary instance of `List` (`m`) into `return`, we should be left with what it was originally. This is also easy to verify in our heads. If we have an arbitrary list `m`, and we map `return` over it, producing some list of *single-element lists*, if we concatenate the list of lists, we should be left with `m`.
+
+Finally, we have the associativity law. This one is most confusing due to how it is written. To simplify it a bit, I will introduce a new operator based on `>>=`. It is called the *monad-composition* operator (or the *Kleisli-composition* operator) and is represented by `>=>`.
+```haskell
+(>=>) :: (Monad m) => (a -> m b) -> (b -> m c) -> a -> m c
+f >=> g = \x -> f x >>= g
+```
+As its name and type annotation suggests, the operator is used for composing monadic functions, just like regular function composition, which looks quite similar:
+```haskell
+(.) :: (b -> c) -> (a -> b) -> (a -> c)
+f . g = \x -> f (g x)
+```
+With the `>=>` operator, we can now rewrite the associativity law as the following:
+```haskell
+(f >=> g) >=> h = f >=> (g >=> h)
+```
+Try verifying the law yourself, think of how we defined `>>=` and just go through the law in your head. If you require some hints, or an explanation, feel free to contact me or ask in the comments and I will post one if I haven't already.
+
+Okay, so we have successfully proven that the `List` data type is in fact a monad. However, as you may have already noticed, it's not a particularly useful monad. Despite this, lists in Haskell (`[]`) also implement `>>=` the same way. It's equivalent to what's known as `concatMap` elsewhere, and while that *does* have its use cases, the monad aspect of lists in Haskell just aren't used very often. The main reason I wanted to introduce monads with a data type like that was to show that they don't have to be particularly useful, just as long as the laws are satisfied.
+
+### A more useful example.
+The monad aspect of lists in Haskell isn't utilized very often, so I felt it was necessary to end with an example that is widely used. Do you recall the `Maybe` data type, which we proved was a functor? Well, it's also a monad - let's prove it.
+
+To start, we should implement `return`. This is again quite simple: in the case of `Maybe`, we can use the `Just` value constructor and wrap any value.
+```haskell
+instance Monad Maybe where
+    -- return :: a -> Maybe a
+    return x = Just x
+```
+Next, we have to implement `>>=`. Remember the type of `>>=` for `Maybe`:
+```haskell
+(>>=) :: Maybe a -> (a -> Maybe b) -> Maybe b
+```
+A useful implementation of `>>=` for `Maybe` that I can think off the top of my head would be one that lets us compose functions that may fail. So, `Maybe a` is the result of the first function, and the second parameter (`a -> Maybe b`) is another function that may fail. We shove the value wrapped in the first parameter to that function and then return the result. If for whatever reason the first parameter (`Maybe a`) is `Nothing` - indicating the first function failed, then we have nothing to apply the second function to and we should return `Nothing`.
+```haskell
+instance Monad Maybe where
+    -- return :: a -> Maybe a
+    return x = Just x
+    -- (>>=) :: Maybe a -> (a -> Maybe b) -> Maybe b
+    Nothing >>= f = Nothing
+    (Just x) >>= f = f x
+```
+As an exercise, try verifying that our implementations satisfy the monad laws. Other than that, we're finished! We can easily compose functions that may fail like this now:
+```haskell
+(f x) >>= g >>= h
+```
+Also, one last thing: I recommend looking at [`do` notation](http://learnyouahaskell.com/a-fistful-of-monads#do-notation), which is just syntactic sugar for `>>=` and similar operators. It makes working with nested `>>=` operations a lot easier.

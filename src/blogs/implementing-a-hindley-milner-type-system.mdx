@@ -1,0 +1,367 @@
+export const metadata = {
+    title: "implementing a hindley-milner type system",
+    date: "2021-08-23",
+    tags: ["compilers", "haskell", "legacy", "programming"]
+};
+
+The [Hindley-Milner type system](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system)
+is prevalent among functional programming languages akin to ML due to
+its completeness and full, most-general-type inference, all while being
+relatively simple and extensible.
+
+In this blog post, I'll walk through an implementation of a Hindley-Milner type system for an example programming language, while sharing one or two things I've learned along the way.
+I use Haskell in this tutorial. However, the explanations should be accessible to everyone.
+
+### The language
+To begin, we should define the language we're going to be working with. It's essentially the lambda calculus, extended with a few types, let bindings, if-expressions, integer/boolean literals, and two binary operators. I'm keeping it very simple intentionally, you are encouraged to extend it with whatever features you desire.
+```haskell
+{- Expressions -}
+abc                -- Variable
+if a then b else c -- If-expression
+\x -> y : a -> b   -- Abstraction
+f x                -- Application
+let a = b in c     -- Let-binding
+123456789 : Int    -- Integer
+True, False : Bool -- Boolean
+x + y              -- Integer addition
+x - y              -- Integer subtraction
+```
+*The notation `a : T` means that `a` is of type `T`.*
+
+### Syntax representation
+We should start by defining some data types to represent our language. Enable the `PatternSynonyms` language extension (we will use it in a bit) - and before anything else, let's add a type alias for `String` for legibility.
+```haskell
+{-# Language PatternSynonyms #-}
+type Name = String
+```
+
+The `Expr` data type will resemble the example syntax given above. Most of it is hopefully self-explanatory. We will have a data type to represent operators as well.
+```haskell
+data Expr
+	= EVar Name
+	| EIf Expr Expr Expr
+	| EAbs Name Expr
+	| EApp Expr Expr
+	| ELet Name Expr Expr
+	| EInt Integer
+	| EBool Bool
+	| EBin Oper Expr Expr
+	deriving Show
+data Oper = Add | Sub deriving Show
+```
+
+We will also have a data type to represent types. `TCon` is a concrete type, such as `Int`, `Bool`, or `List Char`. `TVar` is for type variables, things which are placeholders for concrete types.
+```haskell
+newtype TVar = TV Name deriving (Eq, Show)
+data Type
+	= TCon Name [Type]
+	| TVar TVar
+	deriving (Eq, Show)
+```
+*(Don't forget to derive `Eq` and `Show` for the data types, we will need it later on.)*
+
+Let's also define some built-in types. This is where the `PatternSynonyms` language extension becomes useful.
+```haskell
+pattern TInt = TCon "Int" []
+pattern TBool = TCon "Bool" []
+pattern a :-> b = TCon "->" [a, b]
+```
+*(The arrow type is the type of functions.)*
+
+### Parsing
+Since parsing is not going to be a focus of this post, you have a few options. The first is to choose to work without a parser (work with the AST itself), another is to write one yourself, finally, you also have the option to copy the one I wrote for this tutorial [here](https://github.com/05st/type-inference/blob/master/app/Main.hs#L36), along with the rest of the source code.
+*(I used the parser combinator library Parsec.)*
+
+### The type system
+With all of the preliminary steps of the language out of the way, we can begin to get into the main details of a Hindley-Milner type system.
+
+Essentially, type inference is the process of descending the abstract syntax tree, assigning fresh type variables to every expression, and generating a set of constraints based on what information is available. Afterwards, solving the set of constraints (much like solving a system of equations), will result in a *substitution*. This substitution will map every generated type variable to an inferred *principal* type. The process of solving the constraints is known as *[unification](https://en.wikipedia.org/wiki/Unification_(computer_science))*.
+*(The principal type is, more or less, the most general type of an expression, i.e. any other possible types for the expression are instances of the principal type.)*
+
+The Hindley-Milner type system is defined by a set of inference rules:
+
+$$
+\begin{array}{cl}
+ \displaystyle\frac{x:\sigma \in \Gamma}{\Gamma \vdash x:\sigma} & \bold{Var} \\ \\
+ \displaystyle\frac{\Gamma \vdash e_1:\tau_1 \rightarrow \tau_2 \quad\quad \Gamma \vdash e_2 : \tau_1 }{\Gamma \vdash e_1\ e_2 : \tau_2} & \bold{App} \\ \\
+ \displaystyle\frac{\Gamma,\;x:\tau_1 \vdash e:\tau_2}{\Gamma \vdash \lambda\ x\ .\ e : \tau_1 \rightarrow \tau_2}& \bold{Abs} \\ \\
+ \displaystyle\frac{\Gamma \vdash e_1:\sigma \quad\quad \Gamma,\,x:\sigma \vdash e_2:\tau}{\Gamma \vdash \mathtt{let}\ x = e_1\ \mathtt{in}\ e_2 : \tau} & \bold{Let} \\ \\
+ \displaystyle\frac{\Gamma \vdash e: \sigma \quad \overline{\alpha} \notin \mathtt{ftv}(\Gamma)}{\Gamma \vdash e:\forall\ \overline{\alpha}\ .\ \sigma} & \bold{Gen}\\ \\
+ \displaystyle\frac{\Gamma \vdash e: \sigma_1 \quad\quad \sigma_1 \sqsubseteq \sigma_2}{\Gamma \vdash e : \sigma_2 } & \bold{Inst} \\ \\
+\end{array}
+$$
+
+If you haven't seen inference rules before, it may look like an alien language to you. They're actually quite simple; in this notation, anything above the horizontal line are the hypotheses and anything below are the conclusions. $\Gamma$ (capital gamma) is the context, and  $\vdash$ can be read as "asserts" or "proves". The letter $\sigma$ (sigma) usually represents polymorphic types, whereas $\tau$ (tau) usually represents monomorphic types. Polymorphism and monomorphism is explained later on. The letter $\alpha$ (alpha) usually represents a type variable.
+
+Each rule listed above describes how we deal with a part of our language. The first four: variables, function application, function abstraction, and let-bindings. We will discuss the last two *generalization* and *instantiation* afterwards.
+
+Let's try to parse the first one. The hypothesis ($x:\sigma\in\Gamma$) is that $x$ is of type $\sigma$ in the context of $\Gamma$. The conclusion ($\Gamma\vdash x:\sigma$) of that is: in $\Gamma$, it can be asserted that $x$ is of type $\sigma$. This rule may sound a bit silly, but it's important because it shows us how the context is used.
+*(The context can also be called the typing environment.)*
+
+The second one may appear a bit more involved, but it's still equally simple. In $\Gamma$, if there is a function $e_1$ which maps values of type $\tau_1$ to values of type $\tau_2$ ($e_1:\tau_1\to\tau_2$), and there is an expression $e_2$ which is of type $\tau_1$, then - in $\Gamma$ - the application of $e_1$ on $e_2$ results in a type of $\tau_2$.
+
+In the third rule, the hypothesis is a context $\Gamma$ along with a variable $x : \tau_1$ which assert $e:\tau_2$. The conclusion is that a function which takes $x$ and evaluates to $e$ ($\lambda x.e$) is going to be of type $\tau_1\to\tau_2$ - maps values of type $\tau_1$ to values of type $\tau_2$.
+
+The fourth rule shows us how to handle let-bindings. If in $\Gamma$ some expression $e_1 : \sigma$, and also in $\Gamma$ along with a variable $x$ of the same type ($\sigma$) it is asserted that there is an expression $e_2:\tau$, then we can conclude binding $x=e_1$ and evaluating $e_2$ will give us an expression of type $\tau$.
+
+Now that the inference rules - hopefully - make sense, you are most likely wondering: how does one use this information for type inference? It's somewhat simple, actually. All you have to do is work backwards through the typing rules. Given an expression and a conclusion (from the rules) which matches the expression, you can assign fresh (unused) type variables to sub-expressions of unknown types, and use the judgements in the hypotheses to develop constraints on those type variables. If this doesn't make sense, think about it a bit more. It will hopefully make more sense once we begin the implementation.
+
+Next up are the rules for generalization and instantiation; but we must figure out what polymorphism and monomorphism are first.
+
+### Polymorphism and monomorphism
+Polymorphism in general is about allowing functions to take inputs of varying types. The type of polymorphism we will be focusing on is known as *parametric* polymorphism. This is just a fancy name for generics. It differs from *ad-hoc* polymorphism (also known as overloading) by the fact that a parametrically polymorphic function must handle every type of input the same way.  The trivial example of a parametrically polymorphic function is the identity function.
+$$
+\lambda x.x : \forall a. a\to a
+$$
+The type variable $a$ is universally quantified. We will represent these polymorphic types (polytypes) with *type schemes*. In general, if a type contains type variables, then it is a polytype. That fact allows us to *generalize* a type containing type variables into a type scheme. To show why we need to do this, let's consider monomorphism.
+*(Universal quantification is the same as saying $\forall$ "for all," whereas existential quantification is the same as saying $\exists$ "there exists.")*
+
+Monomorphism is the opposite of polymorphism - a monomorphic function would only accept inputs of a specific type. Even if the type contains type variables, type inference would cause it to reduce to a specific type after later uses of the function. For example:
+```
+let id = (\x -> x) in (id True)
+```
+When the type of `id` is inferred, it is inferred to be `id : a -> a` However, in the body of the let-binding, we apply it on a boolean. Since we haven't explicitly stated `id` should be polymorphic, the final inferred type of `id` would turn out to be `id : Bool -> Bool`. Type schemes solve this issue, and infer `id : forall a. a -> a`.
+
+### Generalization and instantiation
+Generalization and instantiation are the two most important concepts in the Hindley-Milner type system. Generalization deals with converting a monotype (monomorphic type) $\tau$ into a polytype $\sigma$ by closing over all occurrences of free type variables in $\tau$. Closing over simply means removing any free variables, and in mathematics, a free variable is one that is not defined in the current "scope." We remove occurrences of free variables by quantifying them.
+
+The rule for generalization is:
+$$
+\begin{array}{cl}
+\displaystyle\frac{\Gamma \vdash e: \sigma \quad \overline{\alpha} \notin \mathtt{ftv}(\Gamma)}{\Gamma \vdash e:\forall\ \overline{\alpha}\ .\ \sigma}
+\end{array}
+ $$
+ Given $\Gamma$ which asserts $e:\sigma$, and many type variables $\overline{\alpha}$ which are not free type variables in $\Gamma$, we can conclude that in $\Gamma$ it can be asserted $e:\forall\ \overline{\alpha}\ .\ \sigma$. In other words, since $\sigma$ contains type variables, we can universally quantify it with all type variables not in use in the context. This might result in quantifying it with type variables that do not appear in $\sigma$, but that does not make a difference.
+
+Instantiation is a bit like the inverse of generalization; you take a type scheme and replace all quantified type variables with monomorphic fresh type variables. This will be done whenever we need to *use* a type scheme.
+$$
+\begin{array}{cl}
+\displaystyle\frac{\Gamma \vdash e: \sigma_1 \quad\quad \sigma_1 \sqsubseteq \sigma_2}{\Gamma \vdash e : \sigma_2 }
+\end{array}
+$$
+So, if in $\Gamma$ it can be asserted that $e:\sigma_1$, and $\sigma_2$ is an *instantiation* of $\sigma_1$, then we can conclude that in $\Gamma$ it can be asserted that $e$ is also of type $\sigma_2$. When we say "is an instantiation of," informally, we mean that $\sigma_2$ *resembles* (for lack of a better word) $\sigma_1$. This is better explained by examples.
+$$
+\begin{aligned}
+\forall a.\ a\to a & \sqsubseteq \text{Int}\to\text{Int} \\
+\forall a.\ a\to a & \sqsubseteq b\to b \\
+\forall ab.\ a\to b\to a & \sqsubseteq \text{Int}\to\text{Bool}\to\text{Int} \\
+\forall ab.\ a\to b\to a & \sqsubseteq \left(a\to b\right)\to c\to\left(a\to b\right)
+\end{aligned}
+$$
+
+### Substitution
+You most likely already have an idea as to what a substitution is. Basically, it's a mapping from symbols to other symbols. To apply a substitution means to "consistently" replace a symbol to what it is mapped to in the substitution. Examples of applying substitutions:
+$$
+\begin{aligned}
+\left[a\mapsto b\right]&a&=&\ b \\
+\left[a\mapsto b\right]&c&=&\ c \\
+\left[a\mapsto b, b\mapsto a\right]&ab&=&\ ba \\
+\left[a\mapsto b, b\mapsto c\right]&cab&=&\ cbc
+\end{aligned}
+$$
+The substitutions appear inside the square brackets (e.g. $\left[a\mapsto b\right]$). Multiple substitutions are separated by commas. It's also common to see $\left[a/b\right]$ notation used for substitutions. We will represent substitutions as a `Data.Map`, with type variables for the keys and types for the values.
+
+### Free type variables
+We will also be using the function $\bold{tvs}$ to retrieve a set of all the free type variables of a type. It will be implemented with `Data.Set`. The definition will be as follows:
+$$
+\begin{aligned}
+\bold{tvs}(\alpha)&=\{\alpha\} \\
+\bold{tvs}(\tau_1\to\tau_2)&=\bold{tvs}(\tau_1)\ \cup\ \bold{tvs}(\tau_2) \\
+\bold{tvs}(\bold{Int})&=\varnothing \\
+\bold{tvs}(\bold{Bool})&=\varnothing \\
+... \\
+\bold{tvs}(A\ p_1\ p_2\ ...\ p_n)&=\bigcup_{i=1}^n\bold{tvs}(p_i)
+\end{aligned}
+$$
+*(Where $A$ is a type constructor, and $p_n$ is the nth type parameter.)*
+
+### Unification
+Unification is the process by which we will build up a substitution. We don't need to know what unification is formally. All our algorithm needs to do is take a constraint, like an equality constraint, and attempt to unify the two terms. For example, if one of the two terms is a type variable, e.g. $a=x\to y$, then the resulting substitution can simply be $\left[a\mapsto x\to y\right]$ or $\left[x\to y\mapsto a\right]$. We will stick to the former, but it's mostly a matter of preference.
+
+We will use the notation $a\sim b\left(s\right)$ to indicate that $a$ and $b$ are unifiable by the substitution $s$, which means $\left[s\right]a=\left[s\right]b$. With that, the unification rules are as follows:
+$$
+\begin{array}{cl}
+\alpha\sim\alpha\left(\left[\right]\right) & \bold{Same}\\ \\
+\displaystyle\frac{\alpha\notin\bold{tvs}(\tau)}{a\sim\tau\left(\left[\alpha\mapsto\tau\right]\right)} & \bold{Var\ Left}\\ \\
+\displaystyle\frac{\alpha\notin\bold{tvs}(\tau)}{\tau\sim\alpha\left(\left[\alpha\mapsto\tau\right]\right)} & \bold{Var\ Right}\\ \\
+\displaystyle\frac{\tau_1\sim\tau_2'\left(s_1\right)\quad\left[s_1\right]\tau_2\sim\left[s_1\right]\tau_2'\left(s_2\right)}{\tau_1\to\tau_2\sim\tau_1'\to\tau_2'\left(s_2\circ s_1\right)} & \bold{Arrow\left(\to\right)}
+\end{array}
+$$
+The reason we check if $\alpha$ occurs in the free type variables of $\tau$ for $\bold{Var\ Left}$ and $\bold{Var\ Right}$ is because otherwise it would attempt to construct an infinite type. For example, try unifying $a=a\to b$. You get the substitution $\left[a\mapsto a\to b\right]$. If we try to apply the substitution, we get the following:
+$$
+\begin{aligned}
+\left[a\mapsto a\to b\right]&a&=&\ a\to b \\
+\left[a\mapsto a\to b\right]&a\to b&=&\left(a\to b\right)\to b \\
+\left[a\mapsto a\to b\right]&\left(a\to b\right)\to b&=&\left(\left(a\to b\right)\to b\right)\to b
+\end{aligned}
+$$
+To avoid this infinite loop, we perform something called the *occurs check*, which is what you see written as $\alpha\notin\bold{tvs}(\tau)$.
+
+### Inference implementation
+Finally, with all of the explanation out of the way, we can begin to implement the type system. This is where all of it will hopefully fit together and make sense. The specific algorithm we will be implementing is known as [Algorithm W](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Algorithm_W). This algorithm differs from [Algorithm J](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Algorithm_J) by the fact that we build up a set of constraints first, then perform unification and substitution. In Algorithm J, you would unify and substitute while generating the constraints.
+
+To begin, let's go over the monad transformer stack we will be using for the type inference. The main monad transformer will be `RWST` which is equivalent to a `ReaderT`, `WriterT`, `StateT` stack. The monad it will transform will be an `Except String`, you can add a custom error type if you wish.
+
+The environment for the reader monad will be the typing context, a `Data.Map` from `Name`s to `Scheme`s. `Scheme` will be how we represent type schemes (polytypes). It's just going to be a `Data.Set` of type variables, and a type which those type variables are closed over.
+
+The writer will be adding to a list of equality constraints, which we will represent as another data type. We will also define a function `constrain` which helps that process.
+
+The state monad will keep a count (`Int`) of the fresh type variables generated, so we know what fresh type variable to return next time. The function `fresh` will handle generating the fresh type variables.
+
+One last thing, enable the `LambdaCase` language extension. It will allow us to write slightly cleaner code. So far, we have:
+```haskell
+{-# Language PatternSynonyms #-}
+{-# Language LambdaCase #-}
+
+{- ... Imports from before ... -}
+
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Control.Monad.RWS
+import Control.Monad.Except
+
+{- ... Code from before ... -}
+
+data Scheme = Forall (Set.Set TVar) Type
+data Constraint = Constraint Type Type
+type Context = Map.Map Name Scheme
+type Count = Int
+type Constraints = [Constraint]
+
+type Infer a = RWST Context Constraints Count (Except String) a
+
+constrain :: Type -> Type -> Infer ()
+constrain = tell . (:[]) . Constraint
+
+fresh :: Infer Type
+fresh = do
+	count <- get
+	put (count + 1)
+	return . TVar . TV $ show count
+```
+Let's also define a `Substitutable` typeclass which will define `apply` for applying substitutions and `tvs` for querying the free type variables. As stated above, we will represent substitutions as simply a `Data.Map` from type variables to types. The `tvs` function will give us a `Data.Set` of type variables, just like how we defined it above. A function called `compose` will be defined to make composing substitutions easier.
+```haskell
+type Subst = Map.Map TVar Type
+
+compose :: Subst -> Subst -> Subst
+compose a b = Map.map (apply a) (b `Map.union` a)
+
+class Substitutable a where
+	apply :: Subst -> a -> a
+	tvs :: a -> Set.Set TVar
+```
+We can then make a few data types instances of `Substitutable`. We have already gone over the rules for querying type variables, and the implementations for `apply` are mostly straightforward, so I won't go over the implementations.
+```haskell
+instance Substitutable Type where
+	tvs (TVar tv) = Set.singleton tv
+	tvs (TCon _ ts) = foldr (Set.union . tvs) Set.empty ts
+	apply s t@(TVar tv) = Map.findWithDefault t tv s
+	apply s (TCon c ts) = TCon c $ map (apply s) ts
+
+instance Substitutable Scheme where
+	tvs (Forall vs t) = tvs t `Set.difference` vs
+	apply s (Forall vs t) = Forall vs $ apply (foldr Map.delete s vs) t
+	
+instance Substitutable Constraint where
+	tvs (Constraint t1 t2) = tvs t1 `Set.union` tvs t2
+	apply s (Constraint t1 t2) = Constraint (apply s t1) (apply s t2)
+	
+instance Substitutable a => Substitutable [a] where
+	tvs l = foldr (Set.union . tvs) Set.empty l
+	apply s = map (apply s)
+```
+Next up, we must implement generalization and instantiation. Both processes were discussed in part one. The `generalize` function will take in a context and a type, and result in a type scheme. The `instantiate` function will take in a type scheme, and return a type after filling in fresh type variables for all of the type variables it is closed over. We fill in by simply applying a substitution.
+```haskell
+generalize :: Context -> Type -> Scheme
+generalize ctx t = Forall (tvs t `Set.difference` tvs (Map.elems ctx)) t
+
+instantiate :: Scheme -> Infer Type
+instantiate (Forall vs t) = do
+	let vars = Set.toList vs
+	ftvs <- traverse (const fresh) vars
+	let subst = Map.fromList (zip vars ftvs)
+	return $ apply subst t
+```
+We can begin the main expression inference function now. It's going to be of type `Expr -> Infer Type`. All it does is work backwards through the inference rules, which we discussed previously (go back and review from part one if needed). Inference explanation for if-expression is commented, although it should be fairly obvious.
+```haskell
+infer :: Expr -> Infer Type
+infer = \case
+	EInt _ -> TInt -- Integer literal
+	EBool _ -> TBool -- Boolean literal
+	EVar v -> do
+		ctx <- ask -- Retrieve context from Reader
+		case Map.lookup v ctx of
+			Just t -> instantiate t -- Instantiate type scheme for use
+			Nothing -> throwError $ "Undefined variable " ++ v -- Variable not defined
+	EIf c a b -> do
+		ct <- infer c -- Infer type of condition expression
+		at <- infer a -- Infer type of main branch
+		bt <- infer b -- Infer type of else branch
+		constrain ct TBool -- Condition expression should be a Bool
+		constrain at bt -- Branches should be of same type
+		return at -- Return type of any branch
+	EAbs p e -> do
+		pt <- fresh -- Generate fresh type variable for param
+		let ps = Forall Set.empty pt
+		et <- local (Map.insert p ps) (infer e) -- Infer function definition with param defined
+		return $ pt :-> et -- Function has type pt -> et
+	EApp f a -> do
+		ft <- infer f -- Infer type of expression being called
+		at <- infer a -- Infer type of argument
+		rt <- fresh -- Fresh type variable for result type
+		constrain ft (at :-> rt)
+		return rt
+	EBin o a b -> do
+		let ot = -- Operators are functions
+			case o of
+				Add -> TInt :-> (TInt :-> TInt)
+				Sub -> TInt :-> (TInt :-> TInt)
+				-- NOTE: ADD MORE OPERATORS!!
+		at <- infer a -- Infer left operand
+		bt <- infer b -- Infer right operand
+		t <- fresh -- Result type
+		constrain ot (at :-> (bt :-> t))
+		return t
+	ELet v e b -> do
+		et <- infer e -- Infer variable type
+		ctx <- ask
+		let es = generalize ctx et -- Generalize variable type
+		bt <- local (Map.insert v es) (infer b) -- Infer body with variable defined
+		return bt
+```
+That's it for the main type inference function. Read over it a few times to make sure you understand it. All that's left for us to implement now is the unification process. That is more or less going to be a direct translation of the definition from above into code. We should also use a different monad for the entire solving process, the `Except` monad. A helper function named `bind` will be defined, for code reuse purposes. It will perform the occurs check.
+```haskell
+type Solve a = Except String a
+
+unify :: Type -> Type -> Solve Subst
+unify a b | a == b = return Map.empty -- Same
+unify (TVar v) t = bind v t -- Var Left
+unify t (TVar v) = bind v t -- Var Right
+unify a@(TCon n1 ts1) b@(TCon n2 ts2) -- Arrow (->) / other TCons
+	| a /= b = throwError $ "Type mismatch " ++ show a ++ " and " ++ show b
+	| otherwise = unifyMany ts1 ts2
+	where
+		unifyMany [] [] = return Map.empty
+		unifyMany (t1 : ts1) (t2 : ts2) = do
+			s1 <- unify t1 t2
+			s2 <- unifyMany (apply s1 ts1) (apply s1 ts2)
+			return (s2 `compose` s1)
+
+bind :: TVar -> Type -> Solve Subst
+bind v t
+	| v `Set.member` tvs t = throwError $ "Infinite type " ++ show v ++ " ~ " ++ show t -- Occurs check
+	| otherwise = return $ Map.singleton v t
+```
+Finally, we should define a function which takes in a list of constraints and builds a final substitution through `unify`. A helper function to run `solve` will also come in handy.
+```haskell
+solve :: Subst -> [Constraint] -> Solve Subst
+solve s [] = return s
+solve s ((Constraint t1 t2) : cs) = do
+	s1 <- unify t1 t2
+	solve (s1 `compose` s) (apply s1 cs)
+
+runSolve :: [Constraint] -> Either TypeError Subst
+runSolve = runExcept . solve Map.empty
+```
+
+With all of that, we're finally finished! A Hindley-Milner type system fully implemented in Haskell.

@@ -1,0 +1,29 @@
+export const metadata = {
+    title: "functional programming is the future",
+    date: "2021-09-01",
+    tags: ["legacy", "programming", "thoughts"]
+};
+
+As somewhat of a functional programming enthusiast, I believe functional programming is going to be the future. We're already starting to see the changes, more and more mainstream languages are and have been adopting features and concepts which originated from functional programming research. First-class functions, lambdas, lazy evaluation, immutability, the list goes on.
+
+Other features, such as parametric polymorphism (generics), algebraic data types (enums and structs), recursive data types, and type inference also originated from research in these areas. However, a functional programming language does not necessarily need to be statically typed.
+
+### Pure vs. Impure
+Functional programming languages are usually categorized as either pure or impure. Purely functional languages, such as Haskell, are based on the mathematical concept of a function. They do not allow side effects, a function must evaluate to the same result given the same input. Common operations which make programming languages useful, such as input-output, changing mutable state, et cetera, are all effectful operations. Haskell and some other languages, for example, manage to implement those operations through the use of [monads](https://blog.stimsina.com/post/monads-by-example).
+
+The other category consists of impure functional languages. Examples of them are JavaScript, Lisp, Python and Rust. These languages provide features discussed earlier, and encourage the declarative style of writing programs. Usually, these languages are heavily influenced by purely functional languages which originate from academia.
+
+### Future of Purely Functional Languages
+Statically typed, purely functional languages are great; they provide safety and guarantee that your program is correct. If your Agda or Idris (proof assistants) program compiles, it's a proof that it works - is mathematically valid. The same applies to, e.g. Haskell, or even Rust - but to a lesser degree. However, shifting to functional programming is already difficult - it requires changes in how you think and approach problems. Shifting to purely functional programming is even more difficult, most people don't want to bother with learning concepts from abstract mathematics just to write *useful* programs. For this reason, purely functional languages will most likely remain in academia in the foreseeable future.
+
+### Functional Programming in Industry
+In the world of software engineering, a lot of time is spent on making our programs compatible with other programs, or extending our programs with additional features, which has us trying to keep our programs compatible *with themselves*. This results in codebases becoming unnecessarily complex and huge. Functional programming provides an answer to this problem: by building complexity through the composition of simple functions. It results in clean, easily extensible, and manageable code.
+
+Major companies are already adopting functional programming to solve problems. For example, Facebook has written their internal spam-filtering software (which serves millions of requests per second) in Haskell. This [article](https://engineering.fb.com/2015/06/26/security/fighting-spam-with-haskell/) goes into the reasons behind why Haskell was chosen. Aside from Facebook, other companies such as Google, NVIDIA, Microsoft, and thousands more, choose to write tools and projects in Haskell. Many websites are written in PureScript, a purely functional language which compiles to JavaScript. There's even a heavily Haskell-influenced programming language which runs on the JVM, named [Eta](https://eta-lang.org/).
+
+*For a semi-comprehensive list of major uses of Haskell in industry, go [here](http://wiki.haskell.org/Haskell_in_industry).*
+
+### Why You Should Learn Functional Programming
+Aside from all of the other reasons given already, learning functional programming is beneficial to improving as a programmer. *It changes how you think*. You learn different approaches to problems, and will automatically write cleaner, declarative code. Concepts such as monads are so useful, you'll start implementing/applying them in every other language you use. You'll get spoiled by the amazing, expressive type systems that these languages offer. You'll write safer code. The list goes on.
+ 
+If you're eager to get into functional programming now, I highly recommend picking up Haskell. It'll be tough, almost like learning a new spoken language, but extremely rewarding. [This](http://learnyouahaskell.com/chapters) is a good place to get started.

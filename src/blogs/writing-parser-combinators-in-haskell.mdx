@@ -1,0 +1,232 @@
+export const metadata = {
+    title: "writing parser combinators in haskell",
+    date: "2022-07-12",
+    tags: ["compilers", "haskell", "legacy", "programming"]
+};
+
+*All of the code in this blog post can be found [here](https://github.com/05st/parsercombinators/blob/master/src/Parser.hs).*
+
+Parser combinators are a way to build complex parsers from *combining* simpler parsers. A combinator is simply a higher order function which, using function application, combines functions (the arguments). So, in the context of *parser combinators*, a parser is simply a function. But what should a parser do?
+
+### What is parsing?
+Parsing is usually defined as the process of analyzing some string of characters, and turning them into some form of data structure - like an abstract syntax tree - which makes the structure and organization of the original input explicit. With this definition, a parser should be a function which takes in a string of characters as input and ultimately ends up producing some data type. Additionally, our parser will include some minimal error reporting capability.
+
+### The `Parser` type
+In Haskell, we can now define a `Parser` type for all of our parser functions:
+```haskell
+type Error = String
+newtype Parser a = Parser { runParser :: String -> Either Error (String, a) }
+```
+A `Parser a` is simply a function which accepts a `String` input and evaluates into either an error (simply a string), or a `(String, a)` pair. The first element of the pair is the rest of the input, and the second element is whatever we have parsed.
+
+Let's try writing a simple parser for any single character.
+```haskell
+parseAnyChar :: Parser Char
+parseAnyChar = Parser p
+	where
+		p (x : xs) = Right (xs, x)
+		p [] = Left "Empty input"
+```
+The function returns the head of the input string. If the input string is empty, then it throws an error.
+
+We can now begin to create more complex parsers through the composition of simpler ones. For example, we can now write a function to parse a single character based on a predicate. (For the sake of better error reporting, we will also require an error message to 'describe' the predicate).
+```haskell
+parsePredicate' :: (Char -> Bool) -> String -> Parser Char
+parsePredicate' predicate errMsg = Parser p
+	where
+		p input = 
+			case runParser parseAnyChar input of
+				Left err -> Left err
+				Right (restInput, parsedChar) ->
+					if predicate parsedChar
+						then Right (restInput, parsedChar)
+						else Left ("Expected '" ++ errMsg ++ "', got " ++ [parsedChar])
+```
+While this is great, the code is looking a bit long as we are forced to write a lot of boilerplate code every time we want to compose parsers (check for errors, pass through the proceeding input string, etc).
+
+### The `Parser` monad
+To our convenience, our parser type is actually a [monad](https://stimsina.com/blog/what-is-a-monad). Let's write the functor, applicative, and monad instances for it.
+
+```haskell
+instance Functor Parser where
+	fmap f p = Parser (\input -> do
+		(restInput, parsed) <- runParser p input
+		return (restInput, f parsed))
+```
+The functor instance is quite simple, we map the function (`f`) over whatever the output of parsing was. (The `do` block is for the `Either` monad).
+
+```haskell
+instance Applicative Parser where
+	pf <*> pa = Parser (\input -> do
+		(restInput, f) <- runParser pf input
+		(restInput', a) <- runParser pa restInput
+		return (restInput', f a))
+	pure a = Parser (\input -> Right (input, a))
+```
+The applicative instance is a bit more involved. We need to get the function by running the first parser, and then we can apply it onto the result of the second one similar to `fmap`. The definition for `pure` is hopefully self-explanatory.
+
+```haskell
+instance Monad Parser where
+ -- return = pure
+	pa >>= pfb = Parser (\input -> do
+		(restInput, a) <- runParser pa input
+		runParser (pfb a) restInput)
+```
+We have finished the functor/applicative/monad instances for the parser type. Now, we can avoid the boilerplate code and use our parser combinators much more easily. I will also create a `parserError` function to make it slightly more convenient to throw a parser error.
+```haskell
+parserError :: String -> Parser a
+parserError = Parser . const . Left
+```
+Here is the `parsePredicate'` function from earlier, now using the monad instance and our `parserError` function.
+```haskell
+parsePredicate :: (Char -> Bool) -> String -> Parser Char
+parsePredicate predicate errMsg = do
+	parsedChar <- parseAnyChar
+	if predicate parsedChar
+		then return parsedChar
+		else parserError ("Expected '" ++ errMsg ++ "', got '" ++ [parsedChar] ++ "'")
+```
+\
+There's a lot we've implemented in less than 50 lines of code. Let's test it.
+```haskell
+parseLetterC :: Parser Char
+parseLetterC = parsePredicate (== 'c') "letter c"
+```
+```haskell
+-- Main.hs
+main :: IO ()
+main = do
+	putStrLn "Input:"
+	input <- getLine
+	print (runParser parseLetterC input)
+```
+```
+Input:
+bat
+Left "Expected 'letter c', got 'b'"
+
+Input:
+cat
+Right ("at",'c')
+```
+Looks like it's working as expected.
+### More parsers
+We now have a foundation to write much more complex parsers. Let's write a parser for entire strings.
+```haskell
+parseChar :: Char -> Parser Char
+parseChar char = parsePredicate (== char) (show char)
+
+parseString :: String -> Parser String
+parseString = traverse parseChar
+```
+Super simple! The [`traverse`](https://hackage.haskell.org/package/base-4.16.2.0/docs/Data-Traversable.html#v:traverse) function takes care of all of the heavy lifting for us.
+
+Now, what if we want to have options when parsing? Let's say we want to be able to parse the word "bat" or the word "ball" from the same input string. Our current implementation isn't really capable of something like that. This is where we will want to implement choice and backtracking with the function `choice`.
+*(Note: we don't create another function for backtracking (e.g. `try`) as we don't return the input stream with errors. I chose to do this as it shortens some implementations and in general, most people wouldn't really apply backtracking anywhere else.)*
+```haskell
+choice :: Parser a -> Parser a -> Parser a
+choice pa pb = Parser (\input ->
+	case runParser pa input of
+		Left err -> runParser pb input
+		Right (restInput, a) -> Right (restInput, a))
+```
+Essentially, if the first parser errors, we don't stop and return the error - instead we run the second parser.
+
+Side note: our parser can also be an instance of `Alternative` now, since we have an implementation for `<|>`.
+```haskell
+instance Alternative Parser where
+	empty = (Parser . const . Left) [] -- Empty error string
+	(<|>) = choice
+```
+
+Now let's write a parser to solve our example problem:
+```haskell
+parseBatOrBall :: Parser String
+parseBatOrBall = parseString "bat" <|> parseString "ball"
+```
+
+Finally, let's test it out.
+```haskell
+-- Main.hs
+main :: IO ()
+main = do
+	putStrLn "Input:"
+	input <- getLine
+	print (runParser parseBatOrBall input)
+```
+```
+Input:
+bat
+Right ("","bat")
+
+Input:
+ball
+Right ("","ball")
+
+Input:
+blat
+Left "Expected ''a'', got 'l'"
+
+Input:
+back
+Left "Expected ''l'', got 'c'"
+```
+Again working as expected. Note how it only reports errors for the second parser in the choice, as we ignore any errors from the first.
+
+### Parsing a data type
+I would like to finish up with a practical example of parser combinators in action. Here is an example data type used to represent a person:
+```haskell
+data Person = Person
+	{ name :: String
+	, age :: Int
+	, height :: Float
+	}
+	
+instance Show Person where
+	show person = "Name: " ++ name person ++ "\nAge: " ++ show (age person) ++ " years\nHeight: " ++ show (height person) ++ " cm"
+```
+I had to write a few more combinators, like `parseOneOf`, `parseInt`, and `parseFloat`, but here is a parser for the person data type, assuming the input string is in the format `NAME,AGE,HEIGHT`.
+```haskell
+parseOneOf :: [Char] -> Parser Char
+parseOneOf chars = parsePredicate (`elem` chars) ("One of '" ++ chars ++ "'")
+
+parseInt :: Parser Int
+parseInt = read <$> some (parseOneOf ['0'..'9'])
+
+parseFloat :: Parser Float
+parseFloat = do
+	a <- show <$> parseInt
+	parseChar '.'
+	b <- show <$> parseInt
+	return (read $ a ++ ('.' : b))
+
+parsePerson :: Parser  Person
+parsePerson = do
+	name <- some (parseOneOf ['a'..'z'] <|> parseOneOf ['A'..'Z'])
+	parseChar ','
+	age <- parseInt
+	parseChar ','
+	height <- parseFloat
+	return (Person { name = name, age = age, height = height })
+```
+Testing it out:
+```haskell
+-- Main.hs
+main :: IO ()
+main = do
+	putStrLn "Input:"
+	input <- getLine
+	case runParser parsePerson input of
+		Left err -> putStrLn err
+		Right person -> print person
+```
+```
+Input:
+Bob,17,170.18
+Name: Bob
+Age: 17 years
+Height: 170.18 cm
+```
+Output looks good.
+
+In summary, we wrote an entire usable parser combinator library in less than 100 lines of Haskell code. The full source code with the examples can be found [here](https://github.com/05st/parsercombinators/blob/master/src/Parser.hs). This really shows how efficient and easy they are, especially when being implemented/used in a functional programming language. If you're now looking to use parser combinators in an actual project, I highly suggest checking out [Megaparsec](https://github.com/mrkkrp/megaparsec), or [Attoparsec](https://github.com/haskell/attoparsec) if you're looking for something speedy.

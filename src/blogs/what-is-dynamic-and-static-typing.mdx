@@ -1,0 +1,73 @@
+export const metadata = {
+    title: "what is dynamic and static typing?",
+    date: "2021-07-25",
+    tags: ["legacy", "programming"]
+};
+
+### Type Systems and Data Types
+[Type systems](https://en.wikipedia.org/wiki/Type_system) are important components
+of all programming languages. A type system defines the rules in which operations
+can be performed on computed values. This is achieved by assigning each computed
+value to a *[data] type*. Simply put, a type provides a set of values and guarantees
+that specific operations are defined for them. Examples of types you may be familiar
+with are `int`, `bool`, or `string`.
+
+Based on the type a value is an element of, a *type checker* can enforce the
+constraints defined by the type and determine what operations do not make sense
+(i.e. aren't defined for the type) and report it to the programmer. The process
+of type checking can occur at run-time, compile-time, or both. This is where
+the distinction of *dynamic* versus *static* type checking occurs.
+
+### Dynamic Type Checking
+Some programmers have a misconception that "static" type checking is called
+what it is solely because variable types do not change.
+Dynamic type checking occurs while the program is running (at run-time).
+This means that invalid operations such as adding an integer and string
+are *only caught and reported when they happen.* Look at the following
+Python code:
+```python
+x = int(input())
+print(x + "10")
+```
+We can easily analyze this snippet and conclude that no matter what, once
+the interpreter reaches the second line, it will throw an error. Addition
+is not defined for strings in Python, and the language is *strongly typed*
+so there is no implicit type coercion that occurs. I will differentiate
+between strong and weak typing near the end.
+
+### Static Type Checking
+Static type checkers attempt to perform what we did in the previous section and analyze the program based on the source code (or a data structure like an abstract syntax tree) to identify some set of possible type errors, or guarantee that no error from that same set will occur for all possible inputs. The keyword here is "some." Static type checking cannot guarantee that your program is completely correct and type-safe. The process is usually done during compile-time. Some languages like Haskell have very good type systems so it's not uncommon to see people jokingly claim that "if it compiles, it works."
+
+Since static type checking is not able to prevent every type error, the majority of useful statically typed languages also feature dynamic type checking to catch and report errors not identified by the static type checker. Java is a good example of a language that does this since it supports [downcasting](https://en.wikipedia.org/wiki/Downcasting) which can't be statically type-checked.
+
+### Type Inference
+Some statically typed languages, such as Haskell or C# (among many others) feature *type inference*. Type inference is where the programmer doesn't explicitly state the type for a variable or function and instead allows the compiler figure it out - infer - on its own. **It's important to not confuse type inference with dynamic type checking.** Here's a snippet of C# code which demonstrates type inference:
+```csharp
+var obj = new SomeVeryLongClassName();
+var val = obj.SomeMethod();
+```
+versus
+```csharp
+SomeVeryLongClassName obj = new SomeVeryLongClassName();
+string val = obj.SomeMethod();
+```
+The top example is much more concise, which makes it easier to read and write. However, in the bottom example, the second line also demonstrates a scenario where not using type inference may be a good choice. It's not immediately obvious what type `SomeMethod()` returns and what type `val` is.
+
+In both examples, C# is still very much statically type-checked.
+
+### Strong vs. Weak Typing
+Aside from dynamic/static, you will also come across words such as "strong" or "weak" being used to describe a type system. There is not a general consensus as to what it means for a language to be "strongly typed," or "weakly typed." In most situations, if it is stated that a language is strongly typed, it is usually understood as: the type system doesn't perform implicit type coercion (casting) and is stricter when type checking, leading to more errors and less unpredictable behaviour. Looking back at the Python example from earlier,
+```python
+x = int(input())
+print(x + "10")
+```
+because of the fact that Python is strongly typed, it doesn't attempt to perform implicit type casting to make this operation work. Meanwhile, if you attempted the same in JavaScript:
+```javascript
+var x = parseInt(input());
+console.log(x + "10");
+```
+*(Note: input() is not an actual function in JavaScript. Pretend it returns a string.)*
+
+After executing that, you would notice no errors were reported and JavaScript implicitly cast `x` into a string, and outputted the result of concatenating the two strings. This is a popular example of weak typing. Other situations may result in unpredictable and undefined erroneous behaviour.
+
+In most situations, strongly typed languages are a better choice. Some people do advocate for weak typing, stating that the concerns are usually out of proportion.
