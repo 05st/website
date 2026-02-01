@@ -207,19 +207,51 @@ function Comments({ slug }) {
 }
 
 export function BlogList() {
+    const [query, setQuery] = useState("");
+    const normalizedQuery = query.trim().toLowerCase();
+    const filteredBlogs = useMemo(() => {
+        if (!normalizedQuery) {
+            return blogs;
+        }
+        return blogs.filter((blog) => {
+            const title = blog.metadata?.title?.toLowerCase() || "";
+            const slug = blog.slug.toLowerCase();
+            const date = blog.metadata?.date?.toLowerCase?.() || "";
+            return title.includes(normalizedQuery)
+                || slug.includes(normalizedQuery)
+                || date.includes(normalizedQuery);
+        });
+    }, [normalizedQuery]);
+
     return (
-        <div class="w-full place-items-left">
-            <ul class="lg:translate-y-1/2">
-                {blogs.map((blog) => (
-                    <li key={blog.slug}>
-                        <a class="group flex gap-1 justify-between items-center" href={`/blog/${blog.slug}`}>
-                            <span class="block">{blog.metadata.title}</span>
-                            <span class="flex-grow border-b-2 border-dotted"></span>
-                            <time class="block text-sm text-neutral-500 group-hover:text-neutral-700">{blog.metadata.date}</time>
-                        </a>
-                    </li>
-                ))}
-            </ul>
+        <div class="w-full lg:h-screen lg:grid lg:grid-rows-2">
+            <div class="lg:flex lg:items-end pb-1">
+                <label class="block w-full">
+                    <span class="sr-only">search</span>
+                    <input
+                        class="box-border h-8 w-full border-0 border-b border-neutral-300 bg-transparent px-0 text-sm leading-10 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+                        type="search"
+                        placeholder="search"
+                        value={query}
+                        onInput={(event) => setQuery(event.currentTarget.value)}
+                    />
+                </label>
+            </div>
+            <div class="lg:flex lg:items-start">
+                <div class="w-full grid gap-4">
+                    <ul>
+                        {filteredBlogs.map((blog) => (
+                            <li key={blog.slug}>
+                                <a class="group flex gap-1 justify-between items-center" href={`/blog/${blog.slug}`}>
+                                    <span class="block">{blog.metadata.title}</span>
+                                    <span class="flex-grow border-b-2 border-dotted"></span>
+                                    <time class="block text-sm text-neutral-500 group-hover:text-neutral-700">{blog.metadata.date}</time>
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
         </div>
     );
 }
