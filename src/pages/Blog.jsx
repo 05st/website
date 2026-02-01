@@ -24,6 +24,77 @@ export function BlogPost() {
     const slug = path.replace("/blog/", "");
     const blog = blogs.find((b) => b.slug == slug);
 
+    useEffect(() => {
+        if (!blog || typeof document === "undefined") {
+            return;
+        }
+
+        const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+        const siteTitle = "Sami Timsina";
+        const title = blog.metadata?.title ? `${blog.metadata.title} — ${siteTitle}` : `blog — ${siteTitle}`;
+        const description = blog.metadata?.description || title;
+        const url = siteUrl ? `${siteUrl}/blog/${blog.slug}` : "";
+
+        document.title = title;
+
+        const upsertMeta = (attribute, key, content) => {
+            if (!content) {
+                return;
+            }
+            let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
+            if (!element) {
+                element = document.createElement("meta");
+                element.setAttribute(attribute, key);
+                document.head.appendChild(element);
+            }
+            element.setAttribute("content", content);
+        };
+        const createMeta = (attribute, key, content) => {
+            if (!content) {
+                return;
+            }
+            const element = document.createElement("meta");
+            element.setAttribute(attribute, key);
+            element.setAttribute("content", content);
+            document.head.appendChild(element);
+        };
+
+        const upsertLink = (rel, href) => {
+            if (!href) {
+                return;
+            }
+            let element = document.head.querySelector(`link[rel="${rel}"]`);
+            if (!element) {
+                element = document.createElement("link");
+                element.setAttribute("rel", rel);
+                document.head.appendChild(element);
+            }
+            element.setAttribute("href", href);
+        };
+
+        upsertMeta("name", "description", description);
+        upsertLink("canonical", url);
+        upsertMeta("property", "og:title", title);
+        upsertMeta("property", "og:description", description);
+        upsertMeta("property", "og:type", "article");
+        upsertMeta("property", "og:url", url);
+        upsertMeta("name", "twitter:card", "summary");
+        upsertMeta("name", "twitter:title", title);
+        upsertMeta("name", "twitter:description", description);
+        upsertMeta("name", "twitter:url", url);
+
+        if (blog.metadata?.date) {
+            upsertMeta("property", "article:published_time", blog.metadata.date);
+        }
+
+        document.head.querySelectorAll('meta[property="article:tag"]').forEach((element) => {
+            element.remove();
+        });
+        (blog.metadata?.tags || []).forEach((tag) => {
+            createMeta("property", "article:tag", tag);
+        });
+    }, [blog]);
+
     if (!blog) {
         return <NotFound />;
     }
