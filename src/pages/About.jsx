@@ -1,6 +1,15 @@
+import { useEffect } from 'preact/hooks';
+import { siteTitle } from '../config/site.js';
 import Link from '../components/Link.jsx';
 
 export function About() {
+	useEffect(() => {
+		if (typeof document === 'undefined') {
+			return;
+		}
+		document.title = siteTitle;
+	}, []);
+
 	return (
 		<article class="w-full">
 			<h1 class="text-base text-left font-medium">sami timsina</h1>

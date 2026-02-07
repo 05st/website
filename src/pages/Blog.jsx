@@ -2,6 +2,7 @@ import { MDXProvider } from '@mdx-js/preact';
 import { createClient } from '@supabase/supabase-js';
 import { useLocation } from 'preact-iso';
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { siteTitle } from '../config/site.js';
 import { NotFound } from './_404';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -19,6 +20,9 @@ const blogs = Object.entries(files).map(([path, mod]) => ({
     component: mod.default
 })).sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
 
+const getDisplayTitle = (metadata) => metadata?.header || metadata?.title || "";
+const getMetaTitle = (metadata) => metadata?.title || metadata?.header || "";
+
 export function BlogPost() {
     const { path } = useLocation();
     const slug = path.replace("/blog/", "");
@@ -30,8 +34,8 @@ export function BlogPost() {
         }
 
         const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
-        const siteTitle = "Sami Timsina";
-        const title = blog.metadata?.title ? `${blog.metadata.title} — ${siteTitle}` : `blog — ${siteTitle}`;
+        const metaTitle = getMetaTitle(blog.metadata);
+        const title = metaTitle ? `${metaTitle} — ${siteTitle}` : `Blog — ${siteTitle}`;
         const description = blog.metadata?.description || title;
         const url = siteUrl ? `${siteUrl}/blog/${blog.slug}` : "";
 
@@ -105,7 +109,7 @@ export function BlogPost() {
 
     return (
         <article class="h-screen lg:pt-4 prose prose-sm">
-            <h1 class="not-prose text-4xl font-medium mb-4">{blog.metadata.title}</h1>
+            <h1 class="not-prose text-4xl font-medium mb-4">{getDisplayTitle(blog.metadata)}</h1>
             <MDXProvider>
                 <blog.component />
             </MDXProvider>
@@ -278,6 +282,13 @@ function Comments({ slug }) {
 }
 
 export function BlogList() {
+    useEffect(() => {
+        if (typeof document === "undefined") {
+            return;
+        }
+        document.title = `Blog — ${siteTitle}`;
+    }, []);
+
     const [query, setQuery] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
     const normalizedQuery = query.trim().toLowerCase();
@@ -304,7 +315,7 @@ export function BlogList() {
             if (!normalizedQuery) {
                 return true;
             }
-            const title = blog.metadata?.title?.toLowerCase() || "";
+            const title = getDisplayTitle(blog.metadata).toLowerCase();
             const slug = blog.slug.toLowerCase();
             const date = blog.metadata?.date?.toLowerCase?.() || "";
             return title.includes(normalizedQuery)
@@ -317,16 +328,18 @@ export function BlogList() {
         <div class="w-full lg:h-screen lg:grid lg:grid-rows-2">
             <div class="lg:flex lg:items-end pb-1">
                 <div class="w-full grid gap-2">
-                    <label class="block w-full">
-                        <span class="sr-only">search</span>
-                        <input
-                            class="box-border h-8 w-full border-0 border-b border-neutral-300 bg-transparent px-0 text-sm leading-10 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
-                            type="search"
-                            placeholder="search"
-                            value={query}
-                            onInput={(event) => setQuery(event.currentTarget.value)}
-                        />
-                    </label>
+                    <div class="flex items-end gap-3">
+                        <label class="block w-full">
+                            <span class="sr-only">search</span>
+                            <input
+                                class="box-border h-8 w-full border-0 border-b border-neutral-300 bg-transparent px-0 text-sm leading-10 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none"
+                                type="search"
+                                placeholder="search"
+                                value={query}
+                                onInput={(event) => setQuery(event.currentTarget.value)}
+                            />
+                        </label>
+                    </div>
                     {!!allTags.length && (
                         <div class="flex flex-wrap gap-2 text-xs text-neutral-600">
                             {allTags.map((tag) => {
@@ -372,7 +385,7 @@ export function BlogList() {
                             >
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex flex-col gap-1">
-                                        <span class="block">{blog.metadata.title}</span>
+                                        <span class="block">{getDisplayTitle(blog.metadata)}</span>
                                         <span class="text-xs text-neutral-500">
                                             {(blog.metadata?.tags || [])
                                                 .slice()

@@ -1,5 +1,6 @@
 import { prerender as ssr } from 'preact-iso';
 import { App } from './app.jsx';
+import { siteTitle } from './config/site.js';
 
 const files = import.meta.glob('./blogs/*.mdx', { eager: true });
 const blogs = Object.entries(files)
@@ -10,18 +11,17 @@ const blogs = Object.entries(files)
 	}))
 	.sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
 
-const siteTitle = 'Sami Timsina';
-
 function buildHead(url) {
 	const siteUrl = import.meta.env.VITE_SITE_URL || '';
 	const normalizedUrl = url || '/';
 	const isBlogPost = normalizedUrl.startsWith('/blog/') && normalizedUrl !== '/blog/';
 	const slug = normalizedUrl.replace('/blog/', '').replace(/\/$/, '');
 	const blog = isBlogPost ? blogs.find((item) => item.slug === slug) : null;
-	const title = blog?.metadata?.title
-		? `${blog.metadata.title} — ${siteTitle}`
+	const metaTitle = blog?.metadata?.title || blog?.metadata?.header || '';
+	const title = metaTitle
+		? `${metaTitle} — ${siteTitle}`
 		: normalizedUrl === '/blog'
-			? `blog — ${siteTitle}`
+			? `Blog — ${siteTitle}`
 			: siteTitle;
 	const description = blog?.metadata?.description || 'writing and notes.';
 	const canonical = siteUrl ? `${siteUrl}${normalizedUrl}` : '';
