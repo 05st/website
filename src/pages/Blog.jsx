@@ -326,6 +326,7 @@ export function BlogList() {
 
     return (
         <div class="w-full lg:h-screen lg:grid lg:grid-rows-2">
+            <h1 class="sr-only">Blog</h1>
             <div class="lg:flex lg:items-end pb-1">
                 <div class="w-full grid gap-2">
                     <div class="flex items-end gap-3">
