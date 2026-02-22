@@ -7,7 +7,7 @@ export function About() {
 		if (typeof document === 'undefined') {
 			return;
 		}
-		document.title = siteTitle;
+		document.title = `About — ${siteTitle}`;
 	}, []);
 
 	return (
