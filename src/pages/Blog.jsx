@@ -328,6 +328,7 @@ export function BlogList() {
         <div class="w-full lg:h-screen lg:grid lg:grid-rows-2">
             <div class="lg:flex lg:items-end pb-1">
                 <div class="w-full grid gap-2">
+                    <h1 class="text-2xl font-medium">Blog</h1>
                     <div class="flex items-end gap-3">
                         <label class="block w-full">
                             <span class="sr-only">search</span>
