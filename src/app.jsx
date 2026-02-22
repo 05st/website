@@ -17,6 +17,7 @@ export function App() {
 					<div class="w-full p-4 place-items-center lg:place-items-start lg:p-0">
 						<Router>
 							<Route path="/" component={About} />
+							<Route path="/about" component={About} />
 							<Route path="/blog" component={BlogList} />
 							<Route path="/blog/:slug" component={BlogPost} />
 							<Route default component={NotFound} />
