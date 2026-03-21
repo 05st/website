@@ -1,0 +1,53 @@
+export const metadata = {
+    title: "Read-Write Asymmetry",
+    header: "read-write asymmetry",
+    date: "2026-03-20",
+    description: "Cognitive read-write asymmetry, and why coding agents create tech debt.",
+    tags: ["artificial intelligence", "programming", "thoughts"]
+};
+
+Traditionally, read-write asymmetry refers to the performance imbalance between reading and writing data in hardware,
+where performing writes is significantly more costly, slower, and more complex than performing reads. This may be an
+inherent property of the physical world. We can generalize this concept and reframe it for humans.
+
+In the not-so-distant past, when a programmer went about writing computer programs, they had to write nearly every
+single line of code themselves. This allowed the programmer to build a mental model of the system. The programmer
+was aware of all the intricate details of their code - various logical nuances, subtle and not so subtle design decisions,
+and how every component interfaced with each other. As a result, the programmer was able to reason about their code
+effectively, identify bugs quickly, and plan further augmentations precisely. When a different person reads that code,
+they fail to build that same mental model of the system. This should be obvious - information is clearly lost. Of course,
+writing clean, descriptive code helps, especially when paired with good commenting habits. However, all of the decisions
+made - most of them subconsciously made - by the programmer simply cannot be etched into the text efficiently, in a manner
+that allows the reader to achieve the same level of understanding, with minimal cognitive load. Of course, the reader
+could meticulously go through the entire codebase, reasoning about the logic line by line, playing and experimenting with
+the code, shooting down their own misconceptions, to build their own sufficiently good mental model. But that requires
+extensive cognitive load, and lots of time. That's exactly what the typical learning process looks when someone begins
+working with an unfamiliar codebase.
+
+With the recent meteoric rise of coding agents, this raises a subtle but increasingly important problem. We're at the
+point where code is primarily being generated via LLMs, rather than typed by a programmer. As a result, most programmers
+are writing prompts in English, and attempt to understand the code simply by reading it. Not only does this typically
+result in a mediocre understanding of the system as argued above, it also imposes a bottleneck on the AI-assisted development
+workflow. The programmer still needs to spend time and endure some level of cognitive load to build a sufficiently good
+understanding of the system. I would argue that the amount of time and cognitive load required to build the same mental model
+of the system as if the programmer wrote the code by hand, is in fact the same as if the programmer wrote the code by hand.
+Intuitively this doesn't seem like an unreasonable assumption, and a defense for this claim could be that understanding
+at the same level of the programmer requires reconstructing the decision tree of the programmer.
+
+So the programmer is faced with a spectrum of options. On one end, they write the code by hand. On the other end, they
+completely let go control and let the coding agent work freely. In the middle, they can spend a bit of time and endure
+a bit of cognitive load developing a mediocre understanding of the system, to still try and reap some of the benefits of
+the AI-assisted development workflow. That seems to be what most people go with. But this results in tech debt.
+
+This may be a transitional side effect. If models continue to improve exponentially, we may reach a point in the near future
+where there is no point for a programmer to develop a mental model of the system, as we can fully outsource all of our
+decision-making to AI. However, if models plateau, this becomes something we can't ignore. This problem is of course
+intractable - there is no way a human can learn without enduring cognitive load. We would need to figure out a solution
+or technique which optimizes the balance between understanding and productivity, suitable for industry-grade software
+development of the future.
+
+Similar to hardware, where we've developed buffering and caching techniques - built entire abstraction layers - to manage
+write asymmetry, perhaps we can build some sort of understanding layer that goes between the human and the coding agent.
+I've brainstormed a couple ideas.
+
+(wip)
